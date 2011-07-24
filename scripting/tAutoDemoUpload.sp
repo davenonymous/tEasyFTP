@@ -39,7 +39,6 @@ public OnConfigsExecuted() {
 	g_bEnabled = GetConVarBool(g_hCvarEnabled);
 
 	GetConVarString(g_hCvarFtpTarget, g_sFtpTarget, sizeof(g_sFtpTarget));
-	if(!g_bEnabled)return;
 }
 
 public Cvar_Changed(Handle:convar, const String:oldValue[], const String:newValue[]) {
@@ -57,6 +56,7 @@ public OnMapStart() {
 }
 
 public Action:CommandListener_Record(client, const String:command[], argc) {
+	if(!g_bEnabled)return;
 	if(g_bRecording)return;
 
 	GetCmdArg(1, g_sDemoPath, sizeof(g_sDemoPath));
@@ -72,6 +72,7 @@ public Action:CommandListener_Record(client, const String:command[], argc) {
 }
 
 public Action:CommandListener_StopRecord(client, const String:command[], argc) {
+	if(!g_bEnabled)return;
 	if(g_bRecording) {
 		new Handle:hDataPack = CreateDataPack();
 		CreateDataTimer(5.0, Timer_UploadDemo, hDataPack);
@@ -93,13 +94,12 @@ public Action:Timer_UploadDemo(Handle:timer, Handle:hDataPack) {
 }
 
 public onComplete(const String:sTarget[], const String:sLocalFile[], const String:sRemoteFile[], iErrorCode) {
-	// LogMessage("Finished uploading %s to %s (code: %i)", sLocalFile, sTarget, iErrorCode);
 	for(new client = 1; client <= MaxClients; client++) {
 		if(IsClientInGame(client) && GetAdminFlag(GetUserAdmin(client), Admin_Reservation)) {
 			if(iErrorCode == 0) {
 				PrintToChat(client, "[SourceTV] Demo uploaded successfully");
 			} else {
-				PrintToChat(client, "[SourceTV] Failed uploading the demo. Check the server log files.");
+				PrintToChat(client, "[SourceTV] Failed uploading demo file. Check the server log files.");
 			}
 		}
 	}
