@@ -89,6 +89,11 @@ public ReloadFtpTargetKV() {
 	decl String:sPath[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, sPath, sizeof(sPath), "configs/RemoteTargets.cfg");
 
+	if(FileExists(sPath)) {
+		LogError("RemoteTargets.cfg does not exist");
+		return;
+	}
+
 	// Clear Queue-Array(Trie) for every target
 	if(g_hKv_FtpTargets != INVALID_HANDLE && KvGotoFirstSubKey(g_hKv_FtpTargets, false)) {
 		do {
