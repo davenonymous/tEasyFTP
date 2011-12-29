@@ -93,7 +93,7 @@ public Action:Timer_UploadDemo(Handle:timer, Handle:hDataPack) {
 	EasyFTP_UploadFile(g_sFtpTarget, sDemoPath, "/", onComplete);
 }
 
-public onComplete(const String:sTarget[], const String:sLocalFile[], const String:sRemoteFile[], iErrorCode) {
+public onComplete(const String:sTarget[], const String:sLocalFile[], const String:sRemoteFile[], iErrorCode, any:data) {
 	for(new client = 1; client <= MaxClients; client++) {
 		if(IsClientInGame(client) && GetAdminFlag(GetUserAdmin(client), Admin_Reservation)) {
 			if(iErrorCode == 0) {

@@ -68,6 +68,8 @@ public NativeUploadFile(Handle:hPlugin, iNumParams) {
 
 	new Function:myFunc = GetNativeCell(4);
 
+	new anyData = GetNativeCell(5);
+
 	new Handle:hArray_Queue = INVALID_HANDLE;
 	if(GetTrieValue(g_hTrie_Data, sTarget, hArray_Queue)) {
 		new Handle:hTrie_UploadEntry = CreateTrie();
@@ -76,6 +78,7 @@ public NativeUploadFile(Handle:hPlugin, iNumParams) {
 		SetTrieString(hTrie_UploadEntry, "target", sTarget);
 		SetTrieValue(hTrie_UploadEntry, "plugin", hPlugin);
 		SetTrieValue(hTrie_UploadEntry, "func", myFunc);
+		SetTrieValue(hTrie_UploadEntry, "data", anyData);
 
 		PushArrayCell(hArray_Queue, hTrie_UploadEntry);
 	} else {
@@ -290,6 +293,9 @@ public onComplete(Handle:hndl, CURLcode: code, any:hTrie_UploadEntry) {
 	new Handle:hPlugin;
 	GetTrieValue(hTrie_UploadEntry, "plugin", hPlugin);
 
+	new anyData;
+	GetTrieValue(hTrie_UploadEntry, "data", anyData);
+
 	new Function:hFunc;
 	GetTrieValue(hTrie_UploadEntry, "func", hFunc);
 
@@ -303,6 +309,7 @@ public onComplete(Handle:hndl, CURLcode: code, any:hTrie_UploadEntry) {
 	Call_PushString(sLocalFile);
 	Call_PushString(sRemoteFile);
 	Call_PushCell(code);
+	Call_PushCell(anyData);
 
 	/* Finish the call, get the result */
 	new iResult;
