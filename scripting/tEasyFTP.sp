@@ -3,7 +3,7 @@
 #include <sourcemod>
 #include <curl>
 
-#define VERSION 		"0.0.1"
+#define VERSION 		"0.0.2"
 
 #define CURL_DEFAULT_OPT(%1) curl_easy_setopt_int_array(%1, CURL_Default_opt, sizeof(CURL_Default_opt))
 new CURL_Default_opt[][2] = {
