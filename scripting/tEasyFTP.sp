@@ -34,7 +34,7 @@ public Plugin:myinfo =
 public OnPluginStart() {
 	CreateConVar("sm_teasyftp_version", VERSION, "", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
 
-	g_hUploadForward = CreateForward(ET_Event, Param_String, Param_String, Param_String, Param_Cell);
+	g_hUploadForward = CreateForward(ET_Event, Param_String, Param_String, Param_String, Param_Cell, Param_Cell);
 
 	ReloadFtpTargetKV();
 }
