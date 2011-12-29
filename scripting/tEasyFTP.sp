@@ -190,7 +190,7 @@ public ProcessQueue() {
 				KvGetString(g_hKv_FtpTargets, "path", sForcePath, sizeof(sForcePath), "");
 
 				decl String:sSSLMode[128];
-				KvGetString(g_hKv_FtpTargets, "ssl", sForcePath, sizeof(sForcePath), "none");
+				KvGetString(g_hKv_FtpTargets, "ssl", sSSLMode, sizeof(sSSLMode), "none");
 				new curl_usessl:iSSLMode = SSLModeStringToEnum(sSSLMode);
 
 				new bool:bCreateMissingDirs = bool:KvGetNum(g_hKv_FtpTargets, "CreateMissingDirs", 0);
