@@ -47,7 +47,7 @@ public OnPluginStart() {
 {
 	RegPluginLibrary("teftp");
 
-	CreateNative("EasyFTPUploadFile", NativeUploadFile);
+	CreateNative("EasyFTP_UploadFile", NativeUploadFile);
 
 	#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 3
 		return APLRes_Success;
@@ -89,7 +89,7 @@ public ReloadFtpTargetKV() {
 	decl String:sPath[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, sPath, sizeof(sPath), "configs/RemoteTargets.cfg");
 
-	if(FileExists(sPath)) {
+	if(!FileExists(sPath)) {
 		LogError("RemoteTargets.cfg does not exist");
 		return;
 	}
@@ -318,9 +318,5 @@ public ClearHandle(&Handle:hndl) {
 
 public getFileBasename(const String:sFilename[], String:sOutput[], maxlength) {
 	new iPos = FindCharInString(sFilename, '/', true);
-	if(iPos != -1) {
-		Format(sOutput, maxlength, "%s", sFilename[iPos]+1);
-	} else {
-		Format(sOutput, maxlength, "%s", sFilename);
-	}
+	strcopy(sOutput, maxlength, iPos != -1 ? sFilename[iPos+1] : sFilename);
 }
