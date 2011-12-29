@@ -1,11 +1,16 @@
 #pragma semicolon 1
 #include <sourcemod>
 #include <teasyftp>
+#undef REQUIRE_EXTENSIONS
+#include <bzip2>
 
 #define VERSION 		"0.0.2"
 
 new Handle:g_hCvarEnabled = INVALID_HANDLE;
 new bool:g_bEnabled = false;
+
+new Handle:g_hCvarBzip = INVALID_HANDLE;
+new g_iBzip2 = 9;
 
 new Handle:g_hCvarFtpTarget = INVALID_HANDLE;
 new String:g_sFtpTarget[255];
@@ -28,6 +33,9 @@ public OnPluginStart() {
 	g_hCvarEnabled = CreateConVar("sm_tautodemoupload_enable", "1", "Automatically upload demos when finished recording.", FCVAR_PLUGIN, true, 0.0, true, 1.0);
 	HookConVarChange(g_hCvarEnabled, Cvar_Changed);
 
+	g_hCvarBzip = CreateConVar("sm_tautodemoupload_bzip2", "9", "Compression level. If set > 0 demos will be compressed before uploading. (Requires bzip2 extension.)", FCVAR_PLUGIN, true, 0.0, true, 9.0);
+	HookConVarChange(g_hCvarBzip, Cvar_Changed);
+
 	g_hCvarFtpTarget = CreateConVar("sm_tautodemoupload_ftptarget", "demos", "The ftp target to use for uploads.", FCVAR_PLUGIN);
 	HookConVarChange(g_hCvarFtpTarget, Cvar_Changed);
 
@@ -37,6 +45,7 @@ public OnPluginStart() {
 
 public OnConfigsExecuted() {
 	g_bEnabled = GetConVarBool(g_hCvarEnabled);
+	g_iBzip2 = GetConVarBool(g_hCvarBzip);
 
 	GetConVarString(g_hCvarFtpTarget, g_sFtpTarget, sizeof(g_sFtpTarget));
 }
@@ -90,10 +99,25 @@ public Action:Timer_UploadDemo(Handle:timer, Handle:hDataPack) {
 	decl String:sDemoPath[PLATFORM_MAX_PATH];
 	ReadPackString(hDataPack, sDemoPath, sizeof(sDemoPath));
 
-	EasyFTP_UploadFile(g_sFtpTarget, sDemoPath, "/", onComplete);
+	if(g_iBzip2 > 0 && g_iBzip2 < 10 && LibraryExists("bzip2")) {
+		decl String:sBzipPath[PLATFORM_MAX_PATH];
+		Format(sBzipPath, sizeof(sBzipPath), "%s.bz2", sDemoPath);
+		BZ2_CompressFile(sDemoPath, sBzipPath, g_iBzip2, CompressionComplete);
+	} else {
+		EasyFTP_UploadFile(g_sFtpTarget, sDemoPath, "/", UploadComplete);
+	}
 }
 
-public onComplete(const String:sTarget[], const String:sLocalFile[], const String:sRemoteFile[], iErrorCode, any:data) {
+public CompressionComplete(BZ_Error:iError, String:inFile[], String:outFile[], any:data) {
+	if(iError == BZ_OK) {
+		LogMessage("%s compressed to %s", inFile, outFile);
+		EasyFTP_UploadFile(g_sFtpTarget, outFile, "/", UploadComplete);
+	} else {
+		LogBZ2Error(iError);
+	}
+}
+
+public UploadComplete(const String:sTarget[], const String:sLocalFile[], const String:sRemoteFile[], iErrorCode, any:data) {
 	for(new client = 1; client <= MaxClients; client++) {
 		if(IsClientInGame(client) && GetAdminFlag(GetUserAdmin(client), Admin_Reservation)) {
 			if(iErrorCode == 0) {
