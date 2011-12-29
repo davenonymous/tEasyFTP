@@ -186,6 +186,12 @@ public ProcessQueue() {
 				decl String:sForcePath[128];
 				KvGetString(g_hKv_FtpTargets, "path", sForcePath, sizeof(sForcePath), "");
 
+				decl String:sSSLMode[128];
+				KvGetString(g_hKv_FtpTargets, "ssl", sForcePath, sizeof(sForcePath), "none");
+				new curl_usessl:iSSLMode = SSLModeStringToEnum(sSSLMode);
+
+				new bool:bCreateMissingDirs = bool:KvGetNum(g_hKv_FtpTargets, "CreateMissingDirs", 0);
+
 				// Prepend missing slash
 				if(strncmp(sForcePath, "/", 1) != 0) {
 					Format(sForcePath, sizeof(sForcePath), "/%s", sForcePath);
@@ -202,7 +208,31 @@ public ProcessQueue() {
 				Format(sFtpURL, sizeof(sFtpURL), "ftp://%s:%s@%s:%i%s%s", sUser, sPassword, sHost, iPort, sForcePath, sRemoteFile);
 
 				LogMessage("Uploading file %s (%i byte) to target %s", sLocalFileBasename, FileSize(sLocalFile), sTarget);
-				CurlUploadFile(sLocalFile, sFtpURL, hTrie_UploadEntry);
+				new Handle:hCurl = curl_easy_init();
+				if(hCurl == INVALID_HANDLE)
+					return;
+
+				CURL_DEFAULT_OPT(hCurl);
+				g_hFile = OpenFile(sLocalFile, "rb");
+
+				// Tell curl we want to upload something
+				curl_easy_setopt_int(hCurl, CURLOPT_UPLOAD, 1);
+				curl_easy_setopt_function(hCurl, CURLOPT_READFUNCTION, ReadFunction);
+
+				if(bCreateMissingDirs) {
+					curl_easy_setopt_int(hCurl, CURLOPT_FTP_CREATE_MISSING_DIRS, CURLFTP_CREATE_DIR);
+				}
+
+				if(iSSLMode != CURLUSESSL_NONE) {
+					curl_easy_setopt_int(hCurl, CURLOPT_USE_SSL, iSSLMode);
+				}
+
+				// Set the URL to the ftp path
+				curl_easy_setopt_string(hCurl, CURLOPT_URL, sFtpURL);
+
+				// Do it threaded
+				curl_easy_perform_thread(hCurl, onComplete, hTrie_UploadEntry);
+
 				return;
 			}
 		} while (KvGotoNextKey(g_hKv_FtpTargets, false));
@@ -210,26 +240,13 @@ public ProcessQueue() {
 	g_bUploading = false;
 }
 
-public CurlUploadFile(const String:sLocalFile[], const String:sFtpURL[], Handle:hTrie_UploadEntry) {
-	new Handle:hCurl = curl_easy_init();
-	if(hCurl == INVALID_HANDLE)
-		return;
-
-	CURL_DEFAULT_OPT(hCurl);
-
-	g_hFile = OpenFile(sLocalFile, "rb");
-
-	// Tell curl we want to upload something
-	curl_easy_setopt_int(hCurl, CURLOPT_UPLOAD, 1);
-	curl_easy_setopt_function(hCurl, CURLOPT_READFUNCTION, ReadFunction);
-
-	// Set the URL to the ftp path
-	curl_easy_setopt_string(hCurl, CURLOPT_URL, sFtpURL);
-
-	// Do it threaded
-	curl_easy_perform_thread(hCurl, onComplete, hTrie_UploadEntry);
+public curl_usessl:SSLModeStringToEnum(const String:sSSLMode[]) {
+	if(StrEqual(sSSLMode, "none", false))return CURLUSESSL_NONE;
+	if(StrEqual(sSSLMode, "try", false))return CURLUSESSL_TRY;
+	if(StrEqual(sSSLMode, "control", false))return CURLUSESSL_CONTROL;
+	if(StrEqual(sSSLMode, "all", false))return CURLUSESSL_ALL;
+	return CURLUSESSL_NONE;
 }
-
 
 public ReadFunction(Handle:hCurl, const bytes, const nmemb)
 {
@@ -318,5 +335,10 @@ public ClearHandle(&Handle:hndl) {
 
 public getFileBasename(const String:sFilename[], String:sOutput[], maxlength) {
 	new iPos = FindCharInString(sFilename, '/', true);
-	strcopy(sOutput, maxlength, iPos != -1 ? sFilename[iPos+1] : sFilename);
+
+	if(iPos != -1) {
+		strcopy(sOutput, maxlength, sFilename[iPos+1]);
+	} else {
+		strcopy(sOutput, maxlength, sFilename);
+	}
 }
