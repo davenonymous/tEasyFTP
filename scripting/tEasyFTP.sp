@@ -36,6 +36,8 @@ public OnPluginStart() {
 
 	g_hUploadForward = CreateForward(ET_Event, Param_String, Param_String, Param_String, Param_Cell, Param_Cell);
 
+	RegAdminCmd("sm_reloadtargets", Command_ReloadTargets, ADMFLAG_ROOT);
+
 	ReloadFtpTargetKV();
 }
 
@@ -54,6 +56,22 @@ public OnPluginStart() {
 	#else
 		return true;
 	#endif
+}
+
+public Action:Command_ReloadTargets(client,args) {
+	if(g_bUploading) {
+		ReplyToCommand(client, "Uploads are running. Can't reload remote target configuration.");
+		return Plugin_Handled;
+	}
+
+	new iCount = ReloadFtpTargetKV();
+	if(iCount == -1) {
+		ReplyToCommand(client, "Could not read remote target configuration.");
+	} else {
+		ReplyToCommand(client, "Reloaded remote target configuration. Found %i target(s).", iCount);
+	}
+
+	return Plugin_Handled;
 }
 
 public NativeUploadFile(Handle:hPlugin, iNumParams) {
@@ -94,7 +112,7 @@ public ReloadFtpTargetKV() {
 
 	if(!FileExists(sPath)) {
 		LogError("RemoteTargets.cfg does not exist");
-		return;
+		return -1;
 	}
 
 	// Clear Queue-Array(Trie) for every target
@@ -106,7 +124,7 @@ public ReloadFtpTargetKV() {
 			new Handle:hArray_Queue = INVALID_HANDLE;
 			GetTrieValue(g_hTrie_Data, sTarget, hArray_Queue);
 
-			while(GetArraySize(hArray_Queue) > 0) {
+			while(hArray_Queue != INVALID_HANDLE && GetArraySize(hArray_Queue) > 0) {
 				new Handle:hTrie_UploadEntry = GetArrayCell(hArray_Queue, 0);
 				RemoveFromArray(hArray_Queue, 0);
 				CloseHandle(hTrie_UploadEntry);
@@ -123,18 +141,29 @@ public ReloadFtpTargetKV() {
 	// Reload KV-File to Handle
 	ClearHandle(g_hKv_FtpTargets);
 	g_hKv_FtpTargets = CreateKeyValues("RockNRoll");
-	FileToKeyValues(g_hKv_FtpTargets, sPath);
+	if(!FileToKeyValues(g_hKv_FtpTargets, sPath)) {
+		return -1;
+	}
 
 	// Rebuild Queue-Array(Trie) for every target
+	new iCount = 0;
 	if(KvGotoFirstSubKey(g_hKv_FtpTargets, false)) {
 		do {
 			new String:sTarget[64];
 			KvGetSectionName(g_hKv_FtpTargets, sTarget, sizeof(sTarget));
 
+			new String:sHost[64];
+			KvGetString(g_hKv_FtpTargets, "host", sHost, sizeof(sHost));
+
+			LogMessage("Found target: %s (%s)", sTarget, sHost);
+
 			new Handle:hArray_Queue = CreateArray(4);
 			SetTrieValue(g_hTrie_Data, sTarget, hArray_Queue);
+			iCount++;
 		} while (KvGotoNextKey(g_hKv_FtpTargets, false));
 	}
+
+	return iCount;
 }
 
 public ProcessQueue() {
