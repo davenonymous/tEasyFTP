@@ -15,6 +15,8 @@ new g_iBzip2 = 9;
 new Handle:g_hCvarFtpTarget = INVALID_HANDLE;
 new String:g_sFtpTarget[255];
 
+new Handle:g_hCvarDelete = INVALID_HANDLE;
+new bool:g_bDelete = false;
 
 new String:g_sDemoPath[PLATFORM_MAX_PATH];
 new bool:g_bRecording = false;
@@ -36,6 +38,9 @@ public OnPluginStart() {
 	g_hCvarBzip = CreateConVar("sm_tautodemoupload_bzip2", "9", "Compression level. If set > 0 demos will be compressed before uploading. (Requires bzip2 extension.)", FCVAR_PLUGIN, true, 0.0, true, 9.0);
 	HookConVarChange(g_hCvarBzip, Cvar_Changed);
 
+	g_hCvarDelete = CreateConVar("sm_tautodemoupload_delete", "0", "Delete the demo (and the bz2) if upload was successful.", FCVAR_PLUGIN, true, 0.0, true, 1.0);
+	HookConVarChange(g_hCvarDelete, Cvar_Changed);
+
 	g_hCvarFtpTarget = CreateConVar("sm_tautodemoupload_ftptarget", "demos", "The ftp target to use for uploads.", FCVAR_PLUGIN);
 	HookConVarChange(g_hCvarFtpTarget, Cvar_Changed);
 
@@ -46,6 +51,7 @@ public OnPluginStart() {
 public OnConfigsExecuted() {
 	g_bEnabled = GetConVarBool(g_hCvarEnabled);
 	g_iBzip2 = GetConVarBool(g_hCvarBzip);
+	g_bDelete = GetConVarBool(g_hCvarDelete);
 
 	GetConVarString(g_hCvarFtpTarget, g_sFtpTarget, sizeof(g_sFtpTarget));
 }
@@ -118,6 +124,15 @@ public CompressionComplete(BZ_Error:iError, String:inFile[], String:outFile[], a
 }
 
 public UploadComplete(const String:sTarget[], const String:sLocalFile[], const String:sRemoteFile[], iErrorCode, any:data) {
+	if(iErrorCode == 0 && g_bDelete) {
+		DeleteFile(sLocalFile);
+		if(StrEqual(sLocalFile[strlen(sLocalFile)-4], ".bz2")) {
+			new String:sLocalNoCompressFile[PLATFORM_MAX_PATH];
+			strcopy(sLocalNoCompressFile, strlen(sLocalFile)-3, sLocalFile);
+			DeleteFile(sLocalNoCompressFile);
+		}
+	}
+
 	for(new client = 1; client <= MaxClients; client++) {
 		if(IsClientInGame(client) && GetAdminFlag(GetUserAdmin(client), Admin_Reservation)) {
 			if(iErrorCode == 0) {
