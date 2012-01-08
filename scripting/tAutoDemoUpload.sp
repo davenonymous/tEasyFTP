@@ -4,7 +4,7 @@
 #undef REQUIRE_EXTENSIONS
 #include <bzip2>
 
-#define VERSION 		"0.0.3"
+#define VERSION 		"0.0.4"
 
 new Handle:g_hCvarEnabled = INVALID_HANDLE;
 new bool:g_bEnabled = false;
