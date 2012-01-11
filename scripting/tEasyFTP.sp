@@ -328,23 +328,28 @@ public onComplete(Handle:hndl, CURLcode: code, any:hTrie_UploadEntry) {
 	new Function:hFunc;
 	GetTrieValue(hTrie_UploadEntry, "func", hFunc);
 
-	AddToForward(g_hUploadForward, hPlugin, hFunc);
+	if(IsValidPlugin(hPlugin)) {
+		AddToForward(g_hUploadForward, hPlugin, hFunc);
 
-	/* Start function call */
-	Call_StartForward(g_hUploadForward);
+		/* Start function call */
+		Call_StartForward(g_hUploadForward);
 
-	/* Push parameters one at a time */
-	Call_PushString(sTarget);
-	Call_PushString(sLocalFile);
-	Call_PushString(sRemoteFile);
-	Call_PushCell(code);
-	Call_PushCell(anyData);
+		/* Push parameters one at a time */
+		Call_PushString(sTarget);
+		Call_PushString(sLocalFile);
+		Call_PushString(sRemoteFile);
+		Call_PushCell(code);
+		Call_PushCell(anyData);
 
-	/* Finish the call, get the result */
-	new iResult;
-	Call_Finish(_:iResult);
+		/* Finish the call, get the result */
+		new iResult;
+		Call_Finish(_:iResult);
 
-	RemoveFromForward(g_hUploadForward, hPlugin, hFunc);
+		RemoveFromForward(g_hUploadForward, hPlugin, hFunc);
+	} else {
+		LogError("Plugin requesting the upload of %s is not loaded anymore.", sLocalFile);
+	}
+
 
 	if(code != CURLE_OK) {
 		new String:error_buffer[256];
@@ -377,4 +382,20 @@ public getFileBasename(const String:sFilename[], String:sOutput[], maxlength) {
 	} else {
 		strcopy(sOutput, maxlength, sFilename);
 	}
+}
+
+// IsValidHandle() is deprecated, let's do a real check then...
+stock bool:IsValidPlugin(Handle:hPlugin) {
+	if(hPlugin == INVALID_HANDLE)return false;
+
+	new Handle:hIterator = GetPluginIterator();
+
+	while(MorePlugins(hIterator)) {
+		new Handle:hLoadedPlugin = ReadPlugin(hIterator);
+		if(hLoadedPlugin == hPlugin)return (GetPluginStatus(hLoadedPlugin) == Plugin_Running);
+	}
+
+	CloseHandle(hIterator);
+
+	return false;
 }
