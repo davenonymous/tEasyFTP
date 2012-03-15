@@ -328,7 +328,7 @@ public onComplete(Handle:hndl, CURLcode: code, any:hTrie_UploadEntry) {
 	new Function:hFunc;
 	GetTrieValue(hTrie_UploadEntry, "func", hFunc);
 
-	if(IsValidPlugin(hPlugin)) {
+	if(IsValidPlugin(hPlugin) && GetPluginStatus(hPlugin) == Plugin_Running) {
 		AddToForward(g_hUploadForward, hPlugin, hFunc);
 
 		/* Start function call */
@@ -390,12 +390,16 @@ stock bool:IsValidPlugin(Handle:hPlugin) {
 
 	new Handle:hIterator = GetPluginIterator();
 
+	new bool:bPluginExists = false;
 	while(MorePlugins(hIterator)) {
 		new Handle:hLoadedPlugin = ReadPlugin(hIterator);
-		if(hLoadedPlugin == hPlugin)return (GetPluginStatus(hLoadedPlugin) == Plugin_Running);
+		if(hLoadedPlugin == hPlugin) {
+			bPluginExists = true;
+			break;
+		}
 	}
 
 	CloseHandle(hIterator);
 
-	return false;
+	return bPluginExists;
 }
