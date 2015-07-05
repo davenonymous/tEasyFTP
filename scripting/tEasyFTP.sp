@@ -84,7 +84,7 @@ public NativeUploadFile(Handle:hPlugin, iNumParams) {
 	decl String:sRemoteFile[128];
 	GetNativeString(3, sRemoteFile, sizeof(sRemoteFile));
 
-	new Function:myFunc = GetNativeCell(4);
+	new Function:myFunc = GetNativeFunction(4);
 
 	new anyData = GetNativeCell(5);
 
@@ -95,7 +95,9 @@ public NativeUploadFile(Handle:hPlugin, iNumParams) {
 		SetTrieString(hTrie_UploadEntry, "remote", sRemoteFile);
 		SetTrieString(hTrie_UploadEntry, "target", sTarget);
 		SetTrieValue(hTrie_UploadEntry, "plugin", hPlugin);
-		SetTrieValue(hTrie_UploadEntry, "func", myFunc);
+		new Handle:hPack = CreateDataPack();
+		WritePackFunction(hPack, myFunc);
+		SetTrieValue(hTrie_UploadEntry, "func", hPack);
 		SetTrieValue(hTrie_UploadEntry, "data", anyData);
 
 		PushArrayCell(hArray_Queue, hTrie_UploadEntry);
@@ -127,7 +129,7 @@ public ReloadFtpTargetKV() {
 			while(hArray_Queue != INVALID_HANDLE && GetArraySize(hArray_Queue) > 0) {
 				new Handle:hTrie_UploadEntry = GetArrayCell(hArray_Queue, 0);
 				RemoveFromArray(hArray_Queue, 0);
-				CloseHandle(hTrie_UploadEntry);
+				CloseTrieUploadEntry(hTrie_UploadEntry);
 			}
 
 			ClearHandle(hArray_Queue);
@@ -186,6 +188,7 @@ public ProcessQueue() {
 
 				if(!FileExists(sLocalFile)) {
 					LogError("Upload failed. File does not exists: %s", sLocalFile);
+					CloseTrieUploadEntry(hTrie_UploadEntry);
 					continue;
 				}
 
@@ -242,7 +245,11 @@ public ProcessQueue() {
 				LogMessage("Uploading file %s (%i byte) to target %s", sLocalFileBasename, FileSize(sLocalFile), sTarget);
 				new Handle:hCurl = curl_easy_init();
 				if(hCurl == INVALID_HANDLE)
+				{
+					LogError("Upload failed. Can't initialize cURL.");
+					CloseTrieUploadEntry(hTrie_UploadEntry);
 					return;
+				}
 
 				CURL_DEFAULT_OPT(hCurl);
 				g_hFile = OpenFile(sLocalFile, "rb");
@@ -325,8 +332,10 @@ public onComplete(Handle:hndl, CURLcode: code, any:hTrie_UploadEntry) {
 	new anyData;
 	GetTrieValue(hTrie_UploadEntry, "data", anyData);
 
-	new Function:hFunc;
-	GetTrieValue(hTrie_UploadEntry, "func", hFunc);
+	new Handle:hPack, Function:hFunc;
+	GetTrieValue(hTrie_UploadEntry, "func", hPack);
+	ResetPack(hPack);
+	hFunc = ReadPackFunction(hPack);
 
 	if(IsValidPlugin(hPlugin) && GetPluginStatus(hPlugin) == Plugin_Running) {
 		AddToForward(g_hUploadForward, hPlugin, hFunc);
@@ -359,6 +368,7 @@ public onComplete(Handle:hndl, CURLcode: code, any:hTrie_UploadEntry) {
 		LogMessage("Finished uploading %s to %s", sLocalFile, sTarget);
 	}
 
+	CloseHandle(hPack);
 	CloseHandle(hTrie_UploadEntry);
 	CloseHandle(hndl);
 
@@ -382,6 +392,14 @@ public getFileBasename(const String:sFilename[], String:sOutput[], maxlength) {
 	} else {
 		strcopy(sOutput, maxlength, sFilename);
 	}
+}
+
+stock CloseTrieUploadEntry(Handle:hTrie_UploadEntry)
+{
+	new Handle:hPack;
+	GetTrieValue(hTrie_UploadEntry, "func", hPack);
+	CloseHandle(hPack);
+	CloseHandle(hTrie_UploadEntry);
 }
 
 // IsValidHandle() is deprecated, let's do a real check then...
